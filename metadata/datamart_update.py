@@ -1,8 +1,28 @@
-def recache_table(**kwargs):
+# конфиг вашего Airflow, содержащий, в частности, идентификатор вашего проекта в BigQuery
+import config
+from datetime import datetime
+from google.cloud import bigquery
+# Класс для работы с BigQuery, документация: https://airflow.apache.org/docs/apache-airflow-providers-google/stable/_modules/airflow/providers/google/cloud/hooks/bigquery.html#BigQueryHook
+from common.hooks.bigquery_hook import BigQueryHook
+import logging
 
+PROJECT_ID = config.BQ_PROJECT_ID_ANALYTICS 
+
+# Функция отправки запроса в BigQuery и получения результата
+def get_BigQuery_results(project_id:str, sql:str ):
+   query = sql
+   logging.info(sql)
+   bigquery = BigQueryHook(project_id=project_id)
+   client = bigquery.get_client()
+   query_job = client.query(query)
+   results = query_job.result()
+   return results
+
+# Функция обновления витрин
+def recache_table(**kwargs):
     sql = f"""
         SELECT *
-        FROM `{PROJECT_ID}.others.recache_table_for_pbi_reports_cache` 
+        FROM `{PROJECT_ID}.dataset_name.recache_table_for_pbi_reports_cache` 
         ORDER BY coalesce(launch_order, 999999) 
         """
 
@@ -29,14 +49,11 @@ def recache_table(**kwargs):
             logging.info(f"""Витрина {destination_table} успешно обновлена.""")
         except:
             logging.info(f"""Не удалось обновить витрину {destination_table}!""")
-            push_custom_message(f"""Не удалось обновить витрину {destination_table}!""")
             failed_cache.append(destination_table)
         
     logging.info(failed_cache)
-    if len(failed_cache)>0:
-        for table in failed_cache:
-            # Запишем не обновившиеся витрины в лог инцидентов
-            save_incident(PROJECT_ID, table_name=table, checked_parameter='Витрина отчета',\
-                error='Не обновилась')
+    #if len(failed_cache)>0:
+        #for table in failed_cache:
+            # Здесь обработка ошибок обновления витрин, например, запись в лог инцидентов
 
     return 0
