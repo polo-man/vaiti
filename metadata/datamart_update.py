@@ -6,6 +6,7 @@ from google.cloud import bigquery
 from common.hooks.bigquery_hook import BigQueryHook
 import logging
 
+# Идентификатор вашего проекта в BigQuery
 PROJECT_ID = config.BQ_PROJECT_ID_ANALYTICS 
 
 # Функция отправки запроса в BigQuery и получения результата
@@ -26,6 +27,7 @@ def recache_table(**kwargs):
         ORDER BY coalesce(launch_order, 999999) 
         """
 
+    # Забираем список витрин для обновления
     df = get_BigQuery_results(PROJECT_ID, sql)
     df = df.to_dataframe()
     failed_cache = []
@@ -38,6 +40,7 @@ def recache_table(**kwargs):
     recache = df[(df['schedule']==0) | (df['schedule']==weekday)].copy()
     recache = recache[(recache['month_update']==0) | (recache['month_update']==date)]
 
+    # Цикл по списку витрин
     for tabel in recache.index:
         destination_table = f"""{recache.loc[tabel, 'cache_project']}.{recache.loc[tabel, 'cache_dataset']}.{recache.loc[tabel, 'cache_table']}"""
         query_for_recached = f"""
