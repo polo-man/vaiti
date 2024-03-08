@@ -1,7 +1,6 @@
 import logging
 import re
 from common.hooks.bigquery_hook import BigQueryHook
-from common.utils.check_BigQuery_utils import get_dataframe_from_bigquery
 from common.utils.bigquery_metadata import update_schema
 import datetime
 
@@ -10,7 +9,8 @@ import datetime
 
 
 def update_tables(sql_metadata, project_id, update_description=False, update_policy=False):
-    df_tables_metadata = get_dataframe_from_bigquery(sql=sql_metadata, project_id=project_id)
+    df = get_BigQuery_results(project_id, sql_metadata)
+    df_tables_metadata = df.to_dataframe()    
 
     list_errors = []
     
