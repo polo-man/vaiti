@@ -8,6 +8,7 @@ import config
 # update_description=False - дескрипшен остается как в исходной схеме
 # update_description=True - дескрипшен устанавливается как в гугл щите
 
+
 # Функция отправки запроса в BigQuery и получения результата
 def get_BigQuery_results(project_id:str, sql:str ):
    query = sql
@@ -17,6 +18,7 @@ def get_BigQuery_results(project_id:str, sql:str ):
    query_job = client.query(query)
    results = query_job.result()
    return results
+
 
 # Функция обновления метаданных одной таблицы
 def update_schema(project, dataset, table_name, update_description=False):
@@ -28,9 +30,6 @@ def update_schema(project, dataset, table_name, update_description=False):
     table_id = project + "." + dataset + "." + table_name
 
     _bigquery = BigQueryHook(project_id=project)
-
-    credentials_read_metadata = config.BQ_CREDENTIALS[PROJECT_ID_METADATA]
-    credentials_bq_read_metadata = service_account.Credentials.from_service_account_info(json.loads(credentials_read_metadata))
 
     print("table_id: ", table_id)
     print("table_id_meta: ", table_id_meta)
@@ -47,31 +46,31 @@ def update_schema(project, dataset, table_name, update_description=False):
     original_schema = table.schema
     original_desc = table.description
     print(f"original_desc={original_desc}")
+    
     sql = f"""SELECT CONCAT(project, '.', dataset, '.', table_name) AS table,
             field, field_description as description, tag_id
-        FROM `{PROJECT_ID_METADATA}.{DATASET_METADATA}.table_schema`
+        FROM `{project}.dataset_name.table_schema`
         WHERE project IS NOT NULL
         GROUP BY 1,2,3,4
         HAVING table = '{table_id_meta}'
         """
-    print(sql)
-    df = pd.read_gbq(sql, project_id=PROJECT_ID_METADATA, credentials=credentials_bq_read_metadata)
-    print(df)
+    df = get_BigQuery_results(project, sql)
+    df = df.to_dataframe()
     
     sql = f"""SELECT CONCAT(project, '.', dataset, '.', table) AS table,
             option, option_name, option_value
-        FROM `{PROJECT_ID_METADATA}.{DATASET_METADATA}.table_metadata`
+        FROM `{project}.dataset_name.table_metadata`
         WHERE project IS NOT NULL
         GROUP BY 1,2,3,4
         HAVING table = '{table_id_meta}'
         """
-    df2 = pd.read_gbq(sql, project_id=PROJECT_ID_METADATA, credentials=credentials_bq_read_metadata)
+    df2 = get_BigQuery_results(project, sql)
+    df2 = df2.to_dataframe()
  
-    # Поля таблицы
+    # Метадынные полей таблицы
     if len(df[df.table==table_id_meta])>0:
         schema=[]
         for f in original_schema:
-            print(6.1, f.name, f)
             desc=''
             df_desc = df[(df.table==table_id_meta)&(df.field==f.name)]
             if len(df_desc):
@@ -87,22 +86,20 @@ def update_schema(project, dataset, table_name, update_description=False):
             print(f'schema={schema}')
             
         table.schema = schema
-        print(table.schema)
         
         # Make an API request
         table = client.update_table(table, ["schema"])  
-        
-    print(table.schema)
+    
+    
     df_metadata = df2[df2.table==table_id_meta]
     if len(df_metadata)>0:
         # Описание таблицы    
         print(df_metadata[df_metadata.option=='description'].info())
         new_table_description = df_metadata[df_metadata.option=='description']['option_value'].values[0]
-        print(new_table_description)
 
         table.description = new_table_description if new_table_description!='' else original_desc
-        print( table.description)
         table = client.update_table(table, ["description"])  # Make an API request.
+
         # Метки таблицы
         new_labels = {}
         for index, row in df2[df2.option=='label'].iterrows():
@@ -121,7 +118,6 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
     df_tables_metadata = df.to_dataframe()    
 
     list_errors = []
-    
     today = datetime.date.today()
 
     bigquery = BigQueryHook(project_id=project_id)
