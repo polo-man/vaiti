@@ -1,7 +1,6 @@
 import logging
 import re
 from common.hooks.bigquery_hook import BigQueryHook
-from common.utils.bigquery_metadata import update_schema
 import datetime
 import config
 
