@@ -1,5 +1,6 @@
 import logging
 import re
+# Класс для работы с BigQuery, документация: https://airflow.apache.org/docs/apache-airflow-providers-google/stable/_modules/airflow/providers/google/cloud/hooks/bigquery.html#BigQueryHook
 from common.hooks.bigquery_hook import BigQueryHook
 import datetime
 import config
