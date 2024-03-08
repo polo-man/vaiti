@@ -7,7 +7,17 @@ import datetime
 # update_description=False - дескрипшен остается как в исходной схеме
 # update_description=True - дескрипшен устанавливается как в гугл щите
 
+# Функция отправки запроса в BigQuery и получения результата
+def get_BigQuery_results(project_id:str, sql:str ):
+   query = sql
+   logging.info(sql)
+   bigquery = BigQueryHook(project_id=project_id)
+   client = bigquery.get_client()
+   query_job = client.query(query)
+   results = query_job.result()
+   return results
 
+# Функция обновления метаданных витрин
 def update_tables(sql_metadata, project_id, update_description=False, update_policy=False):
     df = get_BigQuery_results(project_id, sql_metadata)
     df_tables_metadata = df.to_dataframe()    
@@ -37,7 +47,7 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
             m_table = row['table']
             logging.info(f"get m_table - project_id: {m_project_id}, dataset: {m_dataset}, table: {m_table}")
             
-            # если на конце нет нижнего подчеркивания, то обновляем только указанную таблицу и не трогаем датированные
+            # если на конце нет нижнего подчеркивания, то обновляем только указанную таблицу и не трогаем датированные (речь об таблицах вида table_name_20240310, где цифры - дата обновления витрины)
             if m_table[-1] != '_':
                 logging.info(f"refresh only table: {m_table}")
                 try:
@@ -54,7 +64,7 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
                     logging.error(f"ERROR in update_metadata - {m_project_id}.{m_dataset}.{m_table}\n{str(err)}")
                 continue
 
-            # если на конце есть нижнее подчеркивание, то обновляем последнюю датированную таблицу
+            # если на конце есть нижнее подчеркивание, то обновляем последнюю датированную таблицу 
             logging.info(f"refresh dated table: {m_table}")
 
             date_tables = list(filter(lambda tbl: bool(re.match(m_table + r"_?(\d{8})?$", tbl)), tables_bq))
@@ -65,9 +75,10 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
                 try:
                     table_info = client.get_table(f"{m_project_id}.{m_dataset}.{res_table}")
                     last_modified_date = table_info.modified
+                    # Пишем метаданные только сегодня обновленных витрин, чтобы даты обновления данных и метаданных в интерфейсе витрин совпадали
                     if last_modified_date.date() == today:
                         logging.info(f"refresh metadata project_id: {m_project_id}, dataset: {m_dataset}, table: {res_table}")
-                        update_schema(m_project_id, m_dataset, res_table, update_description=update_description, update_policy=update_policy)
+                        update_schema(m_project_id, m_dataset, res_table, update_description=update_description)
                     else:
                         logging.info(f"Skipping metadata update for {m_project_id}.{m_dataset}.{res_table} as it was not modified today")    
                 except Exception as err:
