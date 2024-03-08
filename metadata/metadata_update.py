@@ -3,12 +3,10 @@ import re
 from common.hooks.bigquery_hook import BigQueryHook
 from common.utils.check_BigQuery_utils import get_dataframe_from_bigquery
 from common.utils.bigquery_metadata import update_schema
-from common.handlers.slack import push_custom_message
 import datetime
 
-# update_policy=False - полиси тэги остаются как в исходной схеме
-# update_policy=True - полиси тэги устанавливаются как в гугл щите
-# то же самое с дескрипшеном
+# update_description=False - дескрипшен остается как в исходной схеме
+# update_description=True - дескрипшен устанавливается как в гугл щите
 
 
 def update_tables(sql_metadata, project_id, update_description=False, update_policy=False):
@@ -47,7 +45,7 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
                     last_modified_date = table_info.modified
                     if last_modified_date.date() == today:
                         logging.info(f"refresh metadata project_id: {m_project_id}, dataset: {m_dataset}, table: {m_table}")
-                        update_schema(m_project_id, m_dataset, m_table, update_description=update_description, update_policy=update_policy)
+                        update_schema(m_project_id, m_dataset, m_table, update_description=update_description)
                     else:
                         logging.info(f"Skipping metadata update for {m_project_id}.{m_dataset}.{m_table} as it was not modified today")
                     
@@ -78,4 +76,3 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
 
     if list_errors:
         logging.info(list_errors)
-        push_custom_message(f"Не удалось обновить метаданные таблиц: {list_errors}")
