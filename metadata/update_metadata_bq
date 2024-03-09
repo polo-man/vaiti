@@ -1,0 +1,56 @@
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
+import config as config
+# Оператор для работы с BQ
+from common.operators.bigquery_sql_operator import BigquerySqlOperator
+from update_metadata_bq.task.metadata_update import update_tables
+
+default_args = {
+    'owner': 'airflow',
+    'start_date': days_ago(1),
+    'depends_on_past': False,
+    'wait_for_downstream': True,
+    'retries': 1,
+    'on_failure_callback': push_to_slack
+}
+
+dag = DAG(
+    dag_id='update_metadata_bq',
+    default_args=default_args,
+    catchup=True,
+    template_searchpath=[config.DAGS_PATH],
+    schedule_interval='0 7 * * *',
+    max_active_runs=1
+)
+
+# Таск кэширует лист tables в BQ. Т.е. создаёт статичную таблицу из внешней
+bq_load_metadata_from_gs = BigquerySqlOperator(
+    task_id='update_metadata_bq.bq_load_metadata_from_gs',
+    executor_config=config.K8S_EXECUTOR_CONFIG,
+    bq_project_id=config.BQ_PROJECT_ID_ANALYTICS,
+    sql_script='update_metadata_bq/sql/bq_load_metadata_from_gs.sql',
+    dag=dag
+)
+
+# Таск кэширует лист fields
+bq_load_table_schema_from_gs = BigquerySqlOperator(
+    task_id='update_metadata_bq.bq_load_table_schema_from_gs',
+    executor_config=config.K8S_EXECUTOR_CONFIG,
+    bq_project_id=config.BQ_PROJECT_ID_ANALYTICS,
+    sql_script='update_metadata_bq/sql/bq_load_table_schema_from_gs.sql',
+    dag=dag
+)
+
+update_bq_metadata = PythonOperator(
+    task_id='update_metadata_bq.update_bq_metadata',
+    executor_config=config.K8S_EXECUTOR_CONFIG,
+    python_callable=update_tables,
+    op_kwargs={
+        'sql_metadata': 'update_metadata_bq/sql/bq_dowload_metadata_table.sql', 
+        'project_id': config.BQ_PROJECT_ID_ANALYTICS
+    },
+    templates_exts=['.sql'],
+    dag=dag)
+
+bq_load_metadata_from_gs >> bq_load_table_schema_from_gs >> update_bq_metadata
