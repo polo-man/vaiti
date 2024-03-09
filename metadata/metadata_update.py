@@ -21,11 +21,9 @@ def get_BigQuery_results(project_id:str, sql:str ):
 
 
 # Функция обновления метаданных одной таблицы
-def update_schema(project, dataset, table_name, update_description=False):
-    if not update_description:
-        logging.info("update_description is False - exiting")
-        return 0
-    table_meta = re.sub(r'_\d{8}$','_', table_name) # для датированных таблиц отсечем дату
+def update_schema(project, dataset, table_name):
+    # для датированных таблиц отсечем дату (речь об таблицах вида table_name_20240310, где цифры - дата обновления витрины)
+    table_meta = re.sub(r'_\d{8}$','_', table_name) 
     table_id_meta = project + "." + dataset + "." + table_meta
     table_id = project + "." + dataset + "." + table_name
 
@@ -43,10 +41,12 @@ def update_schema(project, dataset, table_name, update_description=False):
     except:
         print("Can't find table ", table_id)
         return
+    # Текущие метаданные таблицы
     original_schema = table.schema
     original_desc = table.description
     print(f"original_desc={original_desc}")
     
+    # Возьмем метаданные полей из таблицы (лист fields)
     sql = f"""SELECT CONCAT(project, '.', dataset, '.', table_name) AS table,
             field, field_description as description, tag_id
         FROM `{project}.dataset_name.table_schema`
@@ -57,6 +57,7 @@ def update_schema(project, dataset, table_name, update_description=False):
     df = get_BigQuery_results(project, sql)
     df = df.to_dataframe()
     
+    # И метаданные таблиц (лист tables)
     sql = f"""SELECT CONCAT(project, '.', dataset, '.', table) AS table,
             option, option_name, option_value
         FROM `{project}.dataset_name.table_metadata`
@@ -67,7 +68,7 @@ def update_schema(project, dataset, table_name, update_description=False):
     df2 = get_BigQuery_results(project, sql)
     df2 = df2.to_dataframe()
  
-    # Метадынные полей таблицы
+    # Метаданные полей таблицы
     if len(df[df.table==table_id_meta])>0:
         schema=[]
         for f in original_schema:
@@ -91,6 +92,7 @@ def update_schema(project, dataset, table_name, update_description=False):
         table = client.update_table(table, ["schema"])  
     
     
+    # Метаданные таблицы
     df_metadata = df2[df2.table==table_id_meta]
     if len(df_metadata)>0:
         # Описание таблицы    
@@ -141,7 +143,7 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
             m_table = row['table']
             logging.info(f"get m_table - project_id: {m_project_id}, dataset: {m_dataset}, table: {m_table}")
             
-            # если на конце нет нижнего подчеркивания, то обновляем только указанную таблицу и не трогаем датированные (речь об таблицах вида table_name_20240310, где цифры - дата обновления витрины)
+            # если на конце нет нижнего подчеркивания, то обновляем только указанную таблицу и не трогаем датированные
             if m_table[-1] != '_':
                 logging.info(f"refresh only table: {m_table}")
                 try:
@@ -169,7 +171,7 @@ def update_tables(sql_metadata, project_id, update_description=False, update_pol
                 try:
                     table_info = client.get_table(f"{m_project_id}.{m_dataset}.{res_table}")
                     last_modified_date = table_info.modified
-                    # Пишем метаданные только сегодня обновленных витрин, чтобы даты обновления данных и метаданных в интерфейсе витрин совпадали
+                    # Пишем метаданные только для сегодня обновленных витрин, чтобы даты обновления данных и метаданных в интерфейсе витрин совпадали
                     if last_modified_date.date() == today:
                         logging.info(f"refresh metadata project_id: {m_project_id}, dataset: {m_dataset}, table: {res_table}")
                         update_schema(m_project_id, m_dataset, res_table, update_description=update_description)
