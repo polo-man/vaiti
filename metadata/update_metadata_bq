@@ -11,8 +11,7 @@ default_args = {
     'start_date': days_ago(1),
     'depends_on_past': False,
     'wait_for_downstream': True,
-    'retries': 1,
-    'on_failure_callback': push_to_slack
+    'retries': 1
 }
 
 dag = DAG(
