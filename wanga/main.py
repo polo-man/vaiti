@@ -1,12 +1,11 @@
 from flask import Flask, request
 import sys # Подключаем библиотеку для работы с системными адресами
 sys.path.append('ПУТЬ К ФАЙЛУ do_classes.py') # Указываем адрес модуля основных классов
-from do_classes import getForecast # Используемые функции
+from wanga_classes import getForecast # Используемые функции
 import pandas as pd 
 import json
 
 app = Flask(__name__)
-
 
 @app.route('/f', methods = ['GET', 'POST', 'DELETE'])
 def f():
