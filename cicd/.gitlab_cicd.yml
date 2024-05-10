@@ -1,0 +1,15 @@
+stages: # перечень этапов процесса CI/CD
+    - validate
+
+image: python:3.7 # используемый образ docker
+
+variables: # переменные, которые мы задали
+  BQ_CRED: $BQ # это креды нашего сервисного аккаунта
+  
+validate: # сценарий этапа
+  stage: validate
+  script: # скрипт, который должен быть запущен
+    - python gitlab_cicd/cicd_validate.py
+  only: # триггер запуска скрипта
+    refs: # только для ветки master
+      - master
