@@ -78,6 +78,7 @@ def update_schema(project, dataset, table_name):
         for f in original_schema:
             # Соберем тэги политики
             policy_tags = PolicyTagList()
+            df_tag = df[(df.table==table_id_meta)&(df.field==f.name)]
             if len(df_tag):
                 pt = df_tag ['tag_id'].values[0]
                 policy_tags = PolicyTagList(names=[pt])
