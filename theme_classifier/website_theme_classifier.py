@@ -527,7 +527,7 @@ client = Client(
 
 # Забираем справочник соответствия тематик и ключевых слов
 query = """SELECT industry, subindustry, keyword, weight 
-    FROM datamart.domain_theme_keywords ORDER BY 1,2,4 DESC, 3
+    FROM datamart.theme_dictionary ORDER BY 1,2,4 DESC, 3
     """
 result = client.execute(query)
 
@@ -555,4 +555,5 @@ df_results = analyze_websites_batch(sites, keyword_dict, print_flag=False, max_w
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_colwidth', None)
 df = pd.DataFrame(df_results)
+
 display(df)
