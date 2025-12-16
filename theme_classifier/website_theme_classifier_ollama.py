@@ -6,6 +6,8 @@ import pandas as pd
 import time
 from clickhouse_driver import Client
 from env import YANDEX_TOKEN, CLICKHOUSE_HOST, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD
+from bs4 import BeautifulSoup
+import re
 
 models = ollama.list()
 #print(models) # Проверим, подгрузились ли модели
